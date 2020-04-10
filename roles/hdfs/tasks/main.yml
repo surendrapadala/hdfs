@@ -1,0 +1,34 @@
+---
+# Copying helm file to run hadoop on kubernetes
+- name: Copy the custom file
+  template:
+    src: hdfs.j2
+    dest: /tmp/hdfs.values
+
+# Deploy hdfs through helm
+- name: Hdfs deploy through helm
+  command: helm install stable/hadoop --values /tmp/hdfs.values --name {{ hdfs_name }} 
+
+# To pause the running script to bring up the pods
+- name: wait
+  pause:
+    minutes: 2
+
+# Creating users inside the hdfs cluster
+- name:  Users creation
+  command: kubectl exec   {{ hdfs_name }}-hadoop-yarn-nm-0  -- /bin/sh -c "useradd  regprocessor;useradd  prereg;useradd idrepo"
+
+# Creating folder and giving permissions as per mosip requirement     
+- name: HDFS folder creation for registration processer
+  command: kubectl exec   {{ hdfs_name }}-hadoop-yarn-nm-0  -- /bin/sh -c "hdfs dfs -mkdir /user;hdfs dfs -mkdir /user/regprocessor;hdfs dfs -chown -R regprocessor:regprocessor  /user/regprocessor" 
+    
+- name: HDFS folder creation for preregistration
+  command: kubectl exec   {{ hdfs_name }}-hadoop-yarn-nm-0  -- /bin/sh -c "hdfs dfs -mkdir /user/prereg;hdfs dfs -chown -R prereg:prereg  /user/prereg"
+    
+- name: HDFS folder creation for idrepository
+  command: kubectl exec   {{ hdfs_name }}-hadoop-yarn-nm-0  -- /bin/sh -c "hdfs dfs -mkdir /user/idrepo;hdfs dfs -chown -R idrepo:idrepo  /user/idrepo"
+
+- name: remove helm custom file
+  file:
+    path: /tmp/hdfs.values
+    state: absent
